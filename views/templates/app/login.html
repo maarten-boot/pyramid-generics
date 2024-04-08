@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Login</h1>
+
+    <form action="" method="POST">
+
+      <div>
+        <label for="username" class="form-label">Username</label>
+        <input
+          type="text"
+          name="username"
+          id="username"
+          class="form-control"
+          placeholder="Username"
+          aria-describedby="helpId" />
+      </div>
+
+      <div>
+        <label for="password" class="form-label">Password</label>
+        <input
+          type="password"
+          name="password"
+          id="password"
+          class="form-control"
+          placeholder="Password"
+          aria-describedby="helpId" />
+      </div>
+
+      <button type="submit" class="btn btn-secondary">Login</button>
+    </form>
+
+    <!-- Sign Up! -->
+    <br />
+    <a href="/signup">
+      <button type="button" class="btn btn-secondary">Sign Up!</button>
+    </a>
+{% endblock %}

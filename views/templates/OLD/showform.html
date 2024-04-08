@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div>
+    <form method="POST" action="/update">
+        {% include "form.html" %}
+        <button type="submit" class="btn btn-secondary">Update</button>
+        <a href="/delete/{{ item['id'] }}">del</a>
+    </form>
+</div>
+
+{% endblock %}
