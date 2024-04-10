@@ -13,12 +13,12 @@ format:
 	source ./env/bin/activate; \
 	black \
 		--line-length $(LINE_LENGTH) \
-		$(FILES); \
+		$(FILES) models/$(FILES) views/$(FILES) app/$(FILES); \
 	pylama --max-line-length=$(LINE_LENGTH) \
 		--linters "eradicate,mccabe,pycodestyle,pyflakes,pylint" \
 		--ignore C0103,C0114,C0115,C0116 \
-		$(FILES)
-	# -mypy $(FILES)
+		$(FILES) models/$(FILES) views/$(FILES) app/$(FILES);
+	# -mypy --strict --no-incremental $(FILES)
 
 s1:
 	bash s1.sh

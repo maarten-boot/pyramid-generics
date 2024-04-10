@@ -7,11 +7,13 @@ from views.genericView import GenericView
 
 _m = "students"
 
+
 class StudentView(GenericView):
     def __init__(self, request):
         self.request = request
         self.dbSession = getDbSession()
         self.model = Students
+        self.relativeUrl = f"/{_m}"
 
     @view_config(
         route_name=f"{_m}/new",
@@ -27,6 +29,7 @@ class StudentView(GenericView):
         request_method="GET",
     )
     def listAll(self):  # pylint: disable=unused-argument
+        self.listCaption = "Student Percentage List"
         return super().listAll()
 
     @view_config(

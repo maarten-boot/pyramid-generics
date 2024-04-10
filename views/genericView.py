@@ -1,5 +1,5 @@
 from pyramid.httpexceptions import HTTPFound
-from models.base import  getDbSession
+from models.base import getDbSession
 
 
 class GenericView:
@@ -9,49 +9,67 @@ class GenericView:
         self.request = request
         self.dbSession = getDbSession()
 
+    def _getPkName(self, mustExist: bool = True) -> str | None:
+        fields = self.model.getFields()
+        k = "pk"
+        for n, d in fields.items():
+            if k in d and d[k] is True:
+                return n
+
+        if mustExist is False:
+            return None
+
+        assert False, "Expect to see a PK name in the model metadata"
+
+    def _setDataAsDict(self, row):
+        fields = self.model.getFields()
+        zz = {}
+        for n, d in fields.items():
+            zz[n] = getattr(row, n)
+        return zz
+
+    def getRowsWithPk(self, idX):
+        return self.dbSession.query(self.model).filter(self.model.id == idX)
+
+    def getRowFirstWithPk(self, idX):
+        return self.getRowsWithPk(idX).first()
+
     def newItem(self):  # pylint: disable=unused-argument
         return {
             "data": self.model._GenericData,
+            "relativeUrl": self.relativeUrl,
         }
 
     def listAll(self):  # pylint: disable=unused-argument
+        listCaption = getattr(self, "listCaption", "")
+        fields = self.model.getFields()
         rows = self.dbSession.query(self.model).all()
+
         items = []
         for row in rows:
-            items.append(
-                {
-                    "id": row.id,
-                    "name": row.name,
-                    "percent": row.percent,
-                },
-            )
+            zz = self._setDataAsDict(row)
+            items.append(zz)
+
         return {
             "items": items,
-            "data": self.model._GenericData,
+            "data": fields,
+            "relativeUrl": self.relativeUrl,
+            "listCaption": listCaption,
         }
 
     def showOne(self):
-        idX = int(self.request.matchdict.get("id"))
+        # find the name of the pk
+        pkName = self._getPkName()
+        idX = int(self.request.matchdict.get(pkName))
         # VALIDATE
 
-        row = (
-            self.dbSession.query(
-                self.model,
-            )
-            .filter(self.model.id == idX)
-            .first()
-        )
-
-        item = {}
+        row = self.getRowFirstWithPk(idX)
         if row:
-            item = {
-                "id": row.id,
-                "name": row.name,
-                "percent": row.percent,
-            }
+            zz = self._setDataAsDict(row)
             return {
-                "item": item,
+                "item": zz,
                 "data": self.model._GenericData,
+                "relativeUrl": self.relativeUrl,
             }
         else:
             pass
@@ -60,7 +78,6 @@ class GenericView:
     def addOne(self):
         idX = int(self.request.POST.get("id"))
         name = str(self.request.POST.get("name"))
-
         v = self.request.POST.get("percent")
         if v is None or v == "":
             v = 0
@@ -76,29 +93,35 @@ class GenericView:
 
         self.dbSession.add(item)
         self.dbSession.commit()
-        return HTTPFound(location="/")
+
+        return HTTPFound(location=f"{self.relativeUrl}/")
 
     def updateOne(self):
-        idX = int(self.request.POST.get("id"))
-        # TODO: VALIDATE
+        pkName = self._getPkName()
+        idX = int(self.request.POST.get(pkName))
+        # validate
 
-        item = (
-            self.dbSession.query(
-                self.model,
-            )
-            .filter(self.model.id == idX)
-            .first()
-        )
-        item.name = str(self.request.POST["name"])
-        item.percent = int(self.request.POST["percent"])
+        row = self.getRowFirstWithPk(idX)
+        if row:
+            row.name = str(self.request.POST["name"])
+            row.percent = int(self.request.POST["percent"])
 
-        self.dbSession.commit()
-        return HTTPFound(location="/")
+            self.dbSession.commit()
+
+        return HTTPFound(location=f"{self.relativeUrl}/")
 
     def deleteOne(self):
-        idX = self.request.matchdict.get("id")
+        pkName = self._getPkName()
+        idX = self.request.matchdict.get(pkName)
+        # validate
 
-        self.dbSession.query(self.model).filter(self.model.id == idX).delete()
-        self.dbSession.commit()
+        row = self.getRowFirstWithPk(idX)
+        if row:
+            self.getRowsWithPk(idX).delete()
+            self.dbSession.commit()
 
-        return {"message": "Record has been deleted"}
+        return {
+            "message": "Record has been deleted",
+            "data": self.model._GenericData,
+            "relativeUrl": self.relativeUrl,
+        }
