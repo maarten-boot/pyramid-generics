@@ -13,7 +13,6 @@ MySession = SignedCookieSessionFactory(secret=secret)
 dbSession = getDbSession()
 
 if __name__ == "__main__":
-
     name = Students._genericMeta["name"]
     paths = {
         name: OrderedDict(),

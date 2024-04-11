@@ -18,12 +18,19 @@ ACTIVATE="${VENV}/bin/activate"
 source "${ACTIVATE}"
 "${PIP}" install --upgrade pip
 
-for i in setuptools black pylama pyramid pyramid_jinja2 sqlalchemy
-do
-    $PIP list 2>/dev/null | grep -i -q "^${i} " || {
-        $PIP install "${i}"
-    }
-done
+REQ="requirements-simple.txt"
+
+cat <<! >"${REQ}"
+setuptools
+black
+pylama
+mypy
+pyramid
+pyramid_jinja2
+SQLAlchemy
+!
+
+$PIP install -r "${REQ}"
 
 echo start the app
 $PYTHON main.py

@@ -9,16 +9,27 @@ LINE_LENGTH = 160
 
 all: format
 
-format:
+format: black pylama mypy
+
+black:
 	source ./env/bin/activate; \
 	black \
 		--line-length $(LINE_LENGTH) \
-		$(FILES) models/$(FILES) views/$(FILES) app/$(FILES); \
+		$(FILES) models/$(FILES) views/$(FILES)
+
+pylama:
+	source ./env/bin/activate; \
 	pylama --max-line-length=$(LINE_LENGTH) \
 		--linters "eradicate,mccabe,pycodestyle,pyflakes,pylint" \
 		--ignore C0103,C0114,C0115,C0116 \
-		$(FILES) models/$(FILES) views/$(FILES) app/$(FILES);
-	# -mypy --strict --no-incremental $(FILES)
+		$(FILES) models/$(FILES) views/$(FILES)
+
+mypy:
+	source ./env/bin/activate; \
+	mypy \
+		--strict \
+		--no-incremental \
+		$(FILES) models/$(FILES) views/$(FILES)
 
 s1:
 	bash s1.sh

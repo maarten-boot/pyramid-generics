@@ -1,0 +1,7 @@
+setuptools
+black
+pylama
+mypy
+pyramid
+pyramid_jinja2
+SQLAlchemy

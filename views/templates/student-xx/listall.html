@@ -1,0 +1,35 @@
+{% extends "../base.html" %}
+{% block content %}
+   <div>
+      <table class="table table-striped table-hover table-bordered table-sm">
+         <caption>List of Student Percentage</caption>
+         <thead>
+            <tr>
+               {% for key,val in data.items() %}
+                  <th scope="col">{{ val["label"] }}</th>
+               {% endfor %}
+               <th scope="col">Delete</th>
+            </tr>
+         </thead>
+
+         <tbody class="table-group-divider">
+            {% for item in items %}
+               <tr>
+                  {% for key,val in data.items() %}
+                     {% if key == "id" %}
+                        <th scope="row"><a href="/students/show/{{ item[key] }}">{{item[key]}}</a></td>
+                     {% else %}
+                        <td>{{ item[key]}}</td>
+                     {% endif %}
+                  {% endfor %}
+                  <td><a href="/students/delete/{{ item['id']}}">del</a></td>
+               </tr>
+            {% endfor %}
+         </tbody>
+
+      </table>
+   </div>
+   <div>
+      <a href="/students/new">Add new</a>
+   </div>
+{% endblock %}
