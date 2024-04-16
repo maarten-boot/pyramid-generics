@@ -1,9 +1,11 @@
 {% extends "../base.html" %}
 {% block content %}
-<div>
-    <form method="POST" action="{{ relativeUrl }}/add">
-        {% include "form.html" %}
-        <button type="submit" class="btn btn-secondary">Add</button>
-    </form>
+<div class="row row-cols-auto">
+   <div class="col-sm-4">
+       <form method="POST" action="{{ relativeUrl }}add">
+            {% include "form.html" %}
+            <button type="submit" class="btn btn-secondary">Add</button>
+        </form>
+    </div>
 </div>
 {% endblock %}

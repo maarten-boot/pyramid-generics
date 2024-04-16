@@ -1,8 +1,9 @@
 {% for key,val in data.items() %}
     <div class="form-floating mb-3">
+        {% if (currentUrl.endswith("/new") and not val['readonly']) or ("/showOne" in currentUrl) %}
         <input class="form-control" type="text" name="{{ key }}" id="{{ key }}"
             {% if item %}
-                {% if key == "id" %}
+                {% if val['readonly'] %}
                     readonly="readonly"
                 {% endif %}
                 value="{{ item[key] }}"
@@ -10,5 +11,6 @@
             title="{{ val['title'] }}"
             placeholder="{{ val['title'] }}" />
         <label for="{{ key }}" class="form-label">{{ val['label'] }}</label>
+        {% endif %}
     </div>
 {% endfor %}

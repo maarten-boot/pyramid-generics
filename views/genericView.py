@@ -1,3 +1,11 @@
+# import sys
+
+from typing import (
+    Dict,
+    List,
+    Any,
+)
+
 from pyramid.httpexceptions import HTTPFound
 from models.base import getDbSession
 
@@ -8,6 +16,24 @@ class GenericView:
     def __init__(self, request):
         self.request = request
         self.dbSession = getDbSession()
+
+    def startReturnData(self, action: str) -> Dict[str, Any]:
+        actions: List[str] = [
+            "new",
+            "listAll",
+            "showOne",
+            "delete",
+        ]
+
+        if action not in actions:
+            raise Exception(f"unsupported action: {action}; we know about {actions}")
+
+        r = {
+            "relativeUrl": self.relativeUrl,
+            "currentUrl": self.relativeUrl + action,
+            "menue": self.menue,
+        }
+        return r
 
     def _getPkName(self, mustExist: bool = True) -> str | None:
         fields = self.model.getFields()
@@ -23,10 +49,18 @@ class GenericView:
 
     def _setDataAsDict(self, row):
         fields = self.model.getFields()
-        zz = {}
-        for n, d in fields.items():
-            zz[n] = getattr(row, n)
-        return zz
+        fad = {}
+        for name, data in fields.items():
+            k = "pyType"
+            if k in data and data[k] == "datetime" and "format" in data:
+                z = getattr(row, name)
+                if z:
+                    z = z.strftime(data["format"])
+                fad[name] = z
+            else:
+                fad[name] = getattr(row, name)
+
+        return fad
 
     def getRowsWithPk(self, idX):
         return self.dbSession.query(self.model).filter(self.model.id == idX)
@@ -35,10 +69,9 @@ class GenericView:
         return self.getRowsWithPk(idX).first()
 
     def newItem(self):  # pylint: disable=unused-argument
-        return {
-            "data": self.model._GenericData,
-            "relativeUrl": self.relativeUrl,
-        }
+        r = self.startReturnData("new")
+        r["data"] = self.model._GenericData
+        return r
 
     def listAll(self):  # pylint: disable=unused-argument
         listCaption = getattr(self, "listCaption", "")
@@ -50,12 +83,11 @@ class GenericView:
             zz = self._setDataAsDict(row)
             items.append(zz)
 
-        return {
-            "items": items,
-            "data": fields,
-            "relativeUrl": self.relativeUrl,
-            "listCaption": listCaption,
-        }
+        r = self.startReturnData("listAll")
+        r["items"] = items
+        r["data"] = fields
+        r["listCaption"] = listCaption
+        return r
 
     def showOne(self):
         # find the name of the pk
@@ -66,27 +98,25 @@ class GenericView:
         row = self.getRowFirstWithPk(idX)
         if row:
             zz = self._setDataAsDict(row)
-            return {
-                "item": zz,
-                "data": self.model._GenericData,
-                "relativeUrl": self.relativeUrl,
-            }
+            r = self.startReturnData("showOne")
+            r["item"] = zz
+            r["data"] = self.model._GenericData
+            return r
         else:
+            # print(pkName, idX, "No row fould", file=sys.stderr)
             pass
-            # not found
 
     def addOne(self):
-        idX = int(self.request.POST.get("id"))
+        # TODO: make dymanic
+
         name = str(self.request.POST.get("name"))
         v = self.request.POST.get("percent")
         if v is None or v == "":
             v = 0
         percent = int(v)
-
         # TODO: validate
 
         item = self.model(
-            id=idX,
             name=name,
             percent=percent,
         )
@@ -94,21 +124,24 @@ class GenericView:
         self.dbSession.add(item)
         self.dbSession.commit()
 
-        return HTTPFound(location=f"{self.relativeUrl}/")
+        # TODO add option to redirect to showOne
+
+        return HTTPFound(location=f"{self.relativeUrl}")
 
     def updateOne(self):
+        # TODO: make dymanic
+
         pkName = self._getPkName()
         idX = int(self.request.POST.get(pkName))
-        # validate
-
         row = self.getRowFirstWithPk(idX)
         if row:
             row.name = str(self.request.POST["name"])
             row.percent = int(self.request.POST["percent"])
-
             self.dbSession.commit()
 
-        return HTTPFound(location=f"{self.relativeUrl}/")
+        # TODO add option to redirect to self
+
+        return HTTPFound(location=f"{self.relativeUrl}")
 
     def deleteOne(self):
         pkName = self._getPkName()
@@ -120,8 +153,7 @@ class GenericView:
             self.getRowsWithPk(idX).delete()
             self.dbSession.commit()
 
-        return {
-            "message": "Record has been deleted",
-            "data": self.model._GenericData,
-            "relativeUrl": self.relativeUrl,
-        }
+        r = self.startReturnData("delete")
+        r["message"] = "Record has been deleted"
+        r["data"] = self.model._GenericData
+        return r

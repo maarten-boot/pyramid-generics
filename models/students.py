@@ -8,33 +8,34 @@ from typing import (
 )
 from collections import OrderedDict
 
-# from sqlalchemy.ext.declarative import declarative_base
-
 from sqlalchemy import (
     Column,
     Integer,
     String,
-    # create_engine,
 )
 
-# from sqlalchemy.orm import sessionmaker
+
+from models.base import (
+    Base,
+    HavingDatesCreUpdDel,
+    HavingUuid,
+    HavingIntegerIdAutoIncr,
+)
 
 
-from .base import Base
-
-
-class Students(Base):  # pylint: disable=too-few-public-methods
+class Students(
+    HavingIntegerIdAutoIncr,
+    HavingUuid,
+    HavingDatesCreUpdDel,
+    Base,
+):  # pylint: disable=too-few-public-methods
     __tablename__ = "student"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        nullable=False,
-    )
     name = Column(
         String(63),
         unique=True,
     )
+
     percent = Column(
         Integer,
     )
@@ -49,30 +50,61 @@ class Students(Base):  # pylint: disable=too-few-public-methods
 
     _GenericData["id"] = {
         "pk": True,
-        "label": "ID",
-        "title": "Enter a student identifier.",
+        "auto": True,
+        "readonly": True,
         "pyType": "int",
-        "validators": {
-            "GreaterZero": lambda a: (int(a) > 0),
-        },
+        "label": "ID",
+        "title": "automatically generated",
+    }
+
+    _GenericData["uuid"] = {
+        "auto": True,
+        "readonly": True,
+        "pyType": "uuid",
+        "label": "uuid",
+        "title": "automatically generated",
     }
 
     _GenericData["name"] = {
+        "pyType": "str",
         "label": "Name",
         "title": "Enter a student name.",
-        "pyType": "str",
         "validators": {
             "StringLen": lambda a: (len(str(a)) <= 63),
         },
     }
 
     _GenericData["percent"] = {
-        "label": "Percentage%",
-        "title": "enter a percentage between [0-100] inclusive",
         "pyType": "int",
+        "label": "%",
+        "title": "enter a percentage between [0-100] inclusive",
         "validators": {
             "IntegerPercent": lambda a: (int(a) >= 0 and int(a) <= 100),
         },
+    }
+
+    _GenericData["creAt"] = {
+        "pyType": "datetime",
+        "format": "%Y-%m-%d %H:%M",
+        "label": "created",
+        "title": "The create timestamp, automatically generated",
+        "readonly": True,
+    }
+
+    _GenericData["updAt"] = {
+        "pyType": "datetime",
+        "format": "%Y-%m-%d %H:%M",
+        "label": "updated",
+        "title": "The last update timestamp, automatically generated",
+        "readonly": True,
+    }
+
+    _GenericData["delAt"] = {
+        "label": "deleted",
+        "format": "%Y-%m-%d %H:%M",
+        "title": "The delete timestamp, automatically generated",
+        "pyType": "datetime",
+        "readonly": True,
     }
 
     @classmethod

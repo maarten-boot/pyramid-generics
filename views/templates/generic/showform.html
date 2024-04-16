@@ -1,12 +1,13 @@
 {% extends "../base.html" %}
 {% block content %}
 
-<div>
-    <form method="POST" action="{{ relativeUrl }}/update">
-        {% include "form.html" %}
-        <button type="submit" class="btn btn-secondary">Update</button>
-        <a href="{{ relativeUrl }}/delete/{{ item['id'] }}">del</a>
-    </form>
+<div class="row row-cols-auto">
+   <div class="col-sm-4">
+        <form method="POST" action="{{ relativeUrl }}update">
+            {% include "form.html" %}
+            <button type="submit" class="btn btn-secondary">Update</button>
+            <a href="{{ relativeUrl }}delete/{{ item['id'] }}">del</a>
+        </form>
+    </div>
 </div>
-
 {% endblock %}

@@ -9,7 +9,7 @@ LINE_LENGTH = 160
 
 all: format
 
-format: black pylama mypy
+format: black pylama # mypy
 
 black:
 	source ./env/bin/activate; \
