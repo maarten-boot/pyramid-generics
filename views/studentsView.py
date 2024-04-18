@@ -1,11 +1,8 @@
+import sys
 from pyramid.view import view_config
 
-# from models.base import getDbSession
 from models.students import Students
-
 from views.genericView import GenericView
-
-from main import makeMenue
 
 _m = "students"
 
@@ -15,7 +12,12 @@ class StudentView(GenericView):
         super().__init__(request)
         self.model = Students
         self.relativeUrl = f"/{_m}/"
-        self.menue = makeMenue()
+
+        self.settings = request.registry.settings
+        self.verbose = self.settings.get("verbose")
+        if self.verbose:
+            print(self.settings, file=sys.stderr)
+        self.menue = self.settings.get("menue")
 
     @view_config(
         route_name=f"{_m}/new",

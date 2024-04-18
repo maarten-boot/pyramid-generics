@@ -46,9 +46,9 @@ class Students(
         "labelS": "Student",  # singular
     }
 
-    _GenericData = OrderedDict()
+    _genericData = OrderedDict()
 
-    _GenericData["id"] = {
+    _genericData["id"] = {
         "pk": True,
         "auto": True,
         "readonly": True,
@@ -57,7 +57,7 @@ class Students(
         "title": "automatically generated",
     }
 
-    _GenericData["uuid"] = {
+    _genericData["uuid"] = {
         "auto": True,
         "readonly": True,
         "pyType": "uuid",
@@ -65,7 +65,7 @@ class Students(
         "title": "automatically generated",
     }
 
-    _GenericData["name"] = {
+    _genericData["name"] = {
         "pyType": "str",
         "label": "Name",
         "title": "Enter a student name.",
@@ -74,7 +74,7 @@ class Students(
         },
     }
 
-    _GenericData["percent"] = {
+    _genericData["percent"] = {
         "pyType": "int",
         "label": "%",
         "title": "enter a percentage between [0-100] inclusive",
@@ -83,7 +83,7 @@ class Students(
         },
     }
 
-    _GenericData["creAt"] = {
+    _genericData["creAt"] = {
         "pyType": "datetime",
         "format": "%Y-%m-%d %H:%M",
         "label": "created",
@@ -91,7 +91,7 @@ class Students(
         "readonly": True,
     }
 
-    _GenericData["updAt"] = {
+    _genericData["updAt"] = {
         "pyType": "datetime",
         "format": "%Y-%m-%d %H:%M",
         "label": "updated",
@@ -99,7 +99,7 @@ class Students(
         "readonly": True,
     }
 
-    _GenericData["delAt"] = {
+    _genericData["delAt"] = {
         "label": "deleted",
         "format": "%Y-%m-%d %H:%M",
         "title": "The delete timestamp, automatically generated",
@@ -109,19 +109,19 @@ class Students(
 
     @classmethod
     def getFields(cls) -> Dict[str, Any]:
-        return cls._GenericData
+        return cls._genericData
 
     @classmethod
     def isValid(cls, name: str, value: Any) -> Tuple[bool, Optional[str]]:
         # if we dont know about this name the data is false allways
-        if name not in cls._GenericData:
+        if name not in cls._genericData:
             return False, "Field name unknown in table: Students"
 
         # if we have no validators define the data is ok allways
-        if "validators" not in cls._GenericData[name]:
+        if "validators" not in cls._genericData[name]:
             return True
 
-        for n, func in cls._GenericData[name]["validators"].items():
+        for n, func in cls._genericData[name]["validators"].items():
             if func(value) is False:
                 return False
         return True

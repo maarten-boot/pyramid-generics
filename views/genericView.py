@@ -1,4 +1,4 @@
-# import sys
+import sys
 
 from typing import (
     Dict,
@@ -70,7 +70,7 @@ class GenericView:
 
     def newItem(self):  # pylint: disable=unused-argument
         r = self.startReturnData("new")
-        r["data"] = self.model._GenericData
+        r["data"] = self.model._genericData
         return r
 
     def listAll(self):  # pylint: disable=unused-argument
@@ -100,11 +100,11 @@ class GenericView:
             zz = self._setDataAsDict(row)
             r = self.startReturnData("showOne")
             r["item"] = zz
-            r["data"] = self.model._GenericData
+            r["data"] = self.model._genericData
             return r
-        else:
-            # print(pkName, idX, "No row fould", file=sys.stderr)
-            pass
+
+        if self.settings.get("verbose"):
+            print(pkName, idX, "No row fould", file=sys.stderr)
 
     def addOne(self):
         # TODO: make dymanic
@@ -155,5 +155,5 @@ class GenericView:
 
         r = self.startReturnData("delete")
         r["message"] = "Record has been deleted"
-        r["data"] = self.model._GenericData
+        r["data"] = self.model._genericData
         return r

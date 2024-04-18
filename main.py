@@ -1,67 +1,26 @@
-from collections import OrderedDict
+# import sys
+# from collections import OrderedDict
+# import importlib
 
-from typing import (
-    Dict,
-)
 
 from wsgiref.simple_server import make_server
-
-from pyramid.config import Configurator
 from pyramid.session import SignedCookieSessionFactory
-from pyramid.view import view_config
+from pyramid.config import Configurator
 
-from models.students import Students
-from menue import Menue
+# from pyramid.view import view_config
+
+# from menue import makeMenue
+from autoSettings import makeAutoSettings
 
 secret = "mhshshs yverylongsecret of minimal 64 chars and possibly longer with som random data would be fine ;clnaskafdihweflmxnxcaz"
 MySession = SignedCookieSessionFactory(secret=secret)
 
 
-def makeMenue() -> OrderedDict:
-    menu = Menue()
+def makeApp(settings):
+    paths = settings.get("autoPaths")
+    models = settings.get("models")
 
-    menu.addItem(
-        path="/",
-        label="Home",
-    )
-    menu.addItem(
-        path=f"/{Students._genericMeta['name']}/",
-        label=Students._genericMeta["labelP"],
-    )
-
-    return menu.getMenuAsDict()
-
-
-def addDefaultPaths(paths: Dict[str, OrderedDict], name: str) -> None:
-    paths[name]["listAll"] = "/"
-    paths[name]["new"] = "/new"
-    paths[name]["add"] = "/add"
-    paths[name]["showOne"] = "/show/{id}"
-    paths[name]["update"] = "/update"
-    paths[name]["delete"] = "/delete/{id}"
-
-
-@view_config(
-    route_name="index",
-    renderer="views/templates/base.html",
-)
-def index(request):
-    data = {
-        "currentUrl": "/",
-        "relativeUrl": "/",
-        "menue": makeMenue(),
-    }
-    return data
-
-
-if __name__ == "__main__":
-    name = Students._genericMeta["name"]
-    paths = {
-        name: OrderedDict(),
-    }
-    addDefaultPaths(paths, name)
-
-    with Configurator() as config:
+    with Configurator(settings=settings) as config:
         config.set_session_factory(MySession)
         config.include("pyramid_jinja2")
         config.add_jinja2_renderer(".html")
@@ -71,9 +30,40 @@ if __name__ == "__main__":
             for k, v in pInfo.items():
                 config.add_route(f"{m}/{k}", f"{m}{v}")
 
+        name = "main"
         config.scan(f"views.{name}View")
-        config.scan()
-        app = config.make_wsgi_app()
 
-    server = make_server("0.0.0.0", 6543, app)
+        for k in modelList:
+            name = models[k]["name"]
+            config.scan(f"views.{name}View")
+
+        app = config.make_wsgi_app()
+        return app
+
+
+if __name__ == "__main__":
+    myAddress = "0.0.0.0"
+    myPort = 6543
+    verbose = True
+
+    models = [
+        "model.students.Students",
+    ]
+
+    modelList = ["Students"]
+
+    settings = makeAutoSettings(
+        modelList,
+        address=myAddress,
+        port=myPort,
+        verbose=verbose,
+    )
+    app = makeApp(
+        settings=settings,
+    )
+    server = make_server(
+        myAddress,
+        myPort,
+        app,
+    )
     server.serve_forever()
