@@ -1,4 +1,3 @@
-import sys
 from pyramid.view import view_config
 
 from models.students import Students
@@ -8,16 +7,13 @@ _m = "students"
 
 
 class StudentView(GenericView):
+    modelName = "Students"
+    _m = _m
+
     def __init__(self, request):
         super().__init__(request)
         self.model = Students
         self.relativeUrl = f"/{_m}/"
-
-        self.settings = request.registry.settings
-        self.verbose = self.settings.get("verbose")
-        if self.verbose:
-            print(self.settings, file=sys.stderr)
-        self.menue = self.settings.get("menue")
 
     @view_config(
         route_name=f"{_m}/new",
@@ -33,7 +29,6 @@ class StudentView(GenericView):
         request_method="GET",
     )
     def listAll(self):  # pylint: disable=unused-argument
-        self.listCaption = "Student Percentage List"
         return super().listAll()
 
     @view_config(
@@ -55,6 +50,7 @@ class StudentView(GenericView):
     @view_config(
         route_name=f"{_m}/add",
         request_method="POST",
+        renderer="templates/generic/newform.html",
     )
     def addOne(self):
         return super().addOne()
@@ -62,6 +58,7 @@ class StudentView(GenericView):
     @view_config(
         route_name=f"{_m}/update",
         request_method="POST",
+        renderer="templates/generic/showform.html",
     )
     def updateOne(self):
         return super().updateOne()

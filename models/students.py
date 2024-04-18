@@ -40,11 +40,14 @@ class Students(
         Integer,
     )
 
+    _what = "Student"
+
     _genericMeta = {
         "name": "students",
-        "labelP": "Students",  # plural
-        "labelS": "Student",  # singular
-    }
+        "labelP": f"{_what}s",
+        "labelS": f"{_what}",
+        "listCaption": f"{_what}s Percentage List",
+    }  # plural  # singular
 
     _genericData = OrderedDict()
 
@@ -113,7 +116,7 @@ class Students(
 
     @classmethod
     def isValid(cls, name: str, value: Any) -> Tuple[bool, Optional[str]]:
-        # if we dont know about this name the data is false allways
+        # if we dont know about this name: the data is false allways
         if name not in cls._genericData:
             return False, "Field name unknown in table: Students"
 

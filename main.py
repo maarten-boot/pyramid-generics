@@ -1,19 +1,11 @@
-# import sys
-# from collections import OrderedDict
-# import importlib
-
-
 from wsgiref.simple_server import make_server
 from pyramid.session import SignedCookieSessionFactory
 from pyramid.config import Configurator
 
-# from pyramid.view import view_config
-
-# from menue import makeMenue
 from autoSettings import makeAutoSettings
 
 secret = "mhshshs yverylongsecret of minimal 64 chars and possibly longer with som random data would be fine ;clnaskafdihweflmxnxcaz"
-MySession = SignedCookieSessionFactory(secret=secret)
+my_session_factory = SignedCookieSessionFactory(secret=secret)
 
 
 def makeApp(settings):
@@ -21,7 +13,7 @@ def makeApp(settings):
     models = settings.get("models")
 
     with Configurator(settings=settings) as config:
-        config.set_session_factory(MySession)
+        config.set_session_factory(my_session_factory)
         config.include("pyramid_jinja2")
         config.add_jinja2_renderer(".html")
 

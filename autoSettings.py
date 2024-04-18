@@ -49,7 +49,7 @@ def makeAutoSettings(
         addAutoPaths(paths, _name)
 
         if verbose:
-            print(_name, file=sys.stderr)
+            print("VERBOSE (makeAutoSettings):", f"model _name:{_name}", file=sys.stderr)
 
     settings: Dict[str, Any] = {
         "verbose": verbose,
@@ -60,6 +60,6 @@ def makeAutoSettings(
     }
 
     if verbose:
-        print(f"settings: {settings}", file=sys.stderr)
+        print("VERBOSE (makeAutoSettings):", f"settings: {settings}", file=sys.stderr)
 
     return settings

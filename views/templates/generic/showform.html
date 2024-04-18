@@ -3,6 +3,12 @@
 
 <div class="row row-cols-auto">
    <div class="col-sm-4">
+        {% if message %}
+            <div class=message">
+                {{ message }}
+            </div>
+        {% endif %}
+
         <form method="POST" action="{{ relativeUrl }}update">
             {% include "form.html" %}
             <button type="submit" class="btn btn-secondary">Update</button>

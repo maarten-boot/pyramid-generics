@@ -32,5 +32,4 @@ SQLAlchemy
 
 $PIP install -r "${REQ}"
 
-echo start the app
 $PYTHON main.py

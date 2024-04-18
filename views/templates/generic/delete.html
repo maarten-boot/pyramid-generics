@@ -1,9 +1,14 @@
 {% extends "../base.html" %}
 {% block content %}
 
-   <h3>{{ message}}</h3>
-   <br />
-   <br />
-   <a href="{{ relativeUrl }}">Click here to refresh the list</a>
+   {% if message %}
+   <div class=message">
+      {{ message }}
+   </div>
+   {% endif %}
+
+   <div>
+      <a href="{{ relativeUrl }}">Click here to refresh the list</a>
+   </div>
 
 {% endblock %}
