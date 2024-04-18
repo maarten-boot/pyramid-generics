@@ -7,7 +7,10 @@ LINE_LENGTH = 160
 # C0115 Missing class docstring
 # C0116 Missing function or method docstring
 
-all: format
+all: env format
+
+env:
+	./prep.sh
 
 format: black pylama # mypy
 
