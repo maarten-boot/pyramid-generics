@@ -1,0 +1,7 @@
+{% if request.session.peek_flash()%}
+  <div id="flash" class="row">
+    {% for message in request.session.pop_flash() %}
+      <div>{{ message }}</div>
+    {% endfor %}
+  </div>
+{% endif %}

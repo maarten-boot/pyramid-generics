@@ -26,7 +26,7 @@ class StudentView(GenericView):
     @view_config(
         route_name=f"{_m}/listAll",
         renderer="templates/generic/listall.html",
-        request_method="GET",
+        # request_method="GET",
     )
     def listAll(self):  # pylint: disable=unused-argument
         return super().listAll()

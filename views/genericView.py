@@ -1,5 +1,6 @@
 import sys
 import datetime
+import math
 
 from typing import (
     Dict,
@@ -27,6 +28,33 @@ class GenericView:
                 f"VERBOSE GenericView.__init__: {self.settings}",
                 file=sys.stderr,
             )
+
+    def getMySessionData(self):
+        session = self.request.session
+        if self.model._what not in session:
+            session[self.model._what] = {}
+        return session
+
+    def getListCaption(self):
+        listCaption = (
+            self.settings.get(
+                "models",
+                {},
+            )
+            .get(
+                self.modelName,
+                {},
+            )
+            .get(
+                "genericMeta",
+                {},
+            )
+            .get(
+                "listCaption",
+                "",
+            )
+        )
+        return listCaption
 
     def startReturnData(self, action: str) -> Dict[str, Any]:
         actions: List[str] = [
@@ -91,39 +119,150 @@ class GenericView:
             return None
         return row
 
+    def getNavAndLimit(self):
+        nav = None
+        limit = None
+
+        for k in ["first", "prev", "next", "last"]:
+            z = f"btn-{k}"
+            if z in self.request.POST:
+                nav = k
+
+        if "limit" in self.request.POST:
+            limit = int(self.request.POST.get("limit", 0))
+
+        if not limit:
+            limit = 5
+
+        if self.verbose:
+            print(f"nav: {nav}, {limit}", file=sys.stderr)
+
+        if limit <= 0:
+            limit = 1
+        if limit > 1000:
+            limit = 1000
+
+        return nav, limit
+
+    def getSortUpDownForFields(self):
+        def toggleSort(what):
+            if what == "" or what is None:
+                what = "down"
+            elif what == "down":
+                what = "up"
+            elif what == "up":
+                what = ""
+            else:
+                what = ""
+            return what
+
+        session = self.getMySessionData()
+
+        sortList = session.get(
+            self.model._what,
+            {},
+        ).get(
+            "sort",
+            {},
+        )
+
+        fields = self.model.getFields()
+        for name, data in fields.items():
+            z = f"btn-{name}"
+            if z in self.request.POST:
+                sortList[name] = toggleSort(self.request.POST.get(z))
+
+        if self.verbose:
+            print("Sort:", sortList, file=sys.stderr)
+
+        session[self.model._what]["sort"] = sortList
+        return sortList
+
+    def getRowsWithPaginate(self, sortList, nav, limit):
+        session = self.getMySessionData()
+
+        k = "currentPage"
+        if k not in session[self.model._what]:
+            session[self.model._what][k] = 0
+        currentPage = session[self.model._what][k]
+
+        k = "offset"
+        if k not in session[self.model._what]:
+            session[self.model._what][k] = 0
+        offset = session[self.model._what]["offset"]
+
+        # formulate the basic query
+        q = self.dbSession.query(
+            self.model,
+        ).filter(
+            self.model.delAt.is_(None),  # skip soft_deleted items
+        )
+        count = q.count()  # how many rows do we have
+        session[self.model._what]["count"] = count
+
+        pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
+
+        if self.verbose:
+            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
+
+        if nav:
+            if nav == "first":
+                currentPage = 0
+            if nav == "prev":
+                currentPage -= 1
+            if nav == "next":
+                currentPage += 1
+            if nav == "last":
+                currentPage = pages - 1
+
+        if currentPage < 0:
+            currentPage = 0
+        if currentPage >= pages:
+            currentPage = pages
+
+        if currentPage == pages and pages > 0:
+            currentPage -= 1
+
+        offset = limit * currentPage
+        if offset < 0:
+            offset = 0
+        if offset > count:
+            offset = count
+
+        if self.verbose:
+            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
+
+        session[self.model._what]["offset"] = offset
+        session[self.model._what]["currentPage"] = currentPage
+        session[self.model._what]["pages"] = pages
+
+        q = q.limit(
+            limit,
+        ).offset(
+            offset,
+        )
+
+        data = q.all()
+
+        return data, limit, count, pages, currentPage
+
     def newItem(self):  # pylint: disable=unused-argument
         r = self.startReturnData("new")
         r["data"] = self.model._genericData
         return r
 
     def listAll(self):  # pylint: disable=unused-argument
-        listCaption = (
-            self.settings.get(
-                "models",
-                {},
-            )
-            .get(
-                self.modelName,
-                {},
-            )
-            .get(
-                "genericMeta",
-                {},
-            )
-            .get(
-                "listCaption",
-                "",
-            )
-        )
-        fields = self.model.getFields()
-        rows = self.dbSession.query(
-            self.model,
-        ).filter(
-            self.model.delAt.is_(None)  # skip soft_deleted items
-        )
+        if self.verbose:
+            print("POST", self.request.POST, file=sys.stderr)
 
-        # TODO: add a purge view and real delete actions
-        # TODO: introduce paging, filter and search
+        sortList = self.getSortUpDownForFields()
+        nav, limit = self.getNavAndLimit()
+
+        rows, limit, count, pages, currentPage = self.getRowsWithPaginate(
+            sortList,
+            nav,
+            limit,
+        )
 
         items = []
         for row in rows:
@@ -131,9 +270,25 @@ class GenericView:
             items.append(zz)
 
         r = self.startReturnData("listAll")
-        r["items"] = items
-        r["data"] = fields
-        r["listCaption"] = listCaption
+        r["items"] = items  # a list of all rows
+        r["data"] = self.model.getFields()
+        r["listCaption"] = self.getListCaption()
+
+        r["limit"] = limit
+        r["count"] = count
+        if pages == 0:
+            pages = 1
+        r["pages"] = pages
+        if currentPage == 0:
+            currentPage = 1
+        r["currentPage"] = currentPage
+
+        r["sort"] = sortList
+        # search
+
+        # TODO: add a purge view and real delete actions
+        # TODO: introduce paging, filter and search
+        # TODO: clear all filters
         return r
 
     def showOne(self):

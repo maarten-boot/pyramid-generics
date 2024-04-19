@@ -2,24 +2,77 @@
 {% block content %}
 <div class="row row-cols-auto">
    <div class="col">
+      <a href="{{ relativeUrl }}new">Add new</a>
+   </div>
+</div>
+
+<div class="row row-cols-auto">
+   <div class="col">
+
+      <form id="listAll" name="listAll" method="POST" action="{{ relativeUrl }}">
+
+      <button type="submit" name="btn-dummy" id="btn-dummy" class="form-control form-control-sm btn" hidden>
+      </button>
+
       <table class="table table-striped table-hover table-bordered table-sm table-responsive">
+
          <caption>{{ listCaption }}</caption>
+
          <thead>
             <tr>
+
                {% for key,val in data.items() %}
-                  <th class="th-xs" scope="col">{{ val["label"] }}</th>
+                  <th class="th-xs" scope="col">
+                     <button type="submit"
+                        name="btn-{{ key }}"
+                        id="btn-{{ key }}"
+                        {% if sort[key] %}
+                           value="{{ sort[key] }}"
+                        {% else %}
+                           value=""
+                        {% endif %}
+                        class="form-control form-control-sm btn">
+                        {{ val["label"] }}
+
+                        {% if sort[key] == "down" %}
+                           &darr;
+                        {% elif sort[key] == "up" %}
+                           &uarr;
+                        {% else %}
+                           &nbsp;
+                        {% endif %}
+
+                     </button>
+                  </th>
                {% endfor %}
+
                <th class="th-xs" scope="col">Delete</th>
             </tr>
          </thead>
+
          <tbody class="table-group-divider">
+            <tr>
+               {% for key,val in data.items() %}
+                  <td>
+                     <input class="form-control form-control-sm col-xs-1" scope="col"
+                        type="text"
+                        name=""
+                        value=""
+                        size="1"
+                        onchange="formSubmit()"
+                      />
+                  </td>
+               {% endfor %}
+               <td scope="col"></td>
+            </tr>
+
             {% for item in items %}
                <tr>
                   {% for key,val in data.items() %}
                      {% if key == "id" %}
                         <th class="th-xs" scope="row">
                            <a href="{{ relativeUrl }}show/{{ item[key] }}">{{item[key]}}</a>
-                        </td>
+                        </th>
                      {% else %}
                         <td>{{ item[key]}}</td>
                      {% endif %}
@@ -29,9 +82,58 @@
             {% endfor %}
          </tbody>
       </table>
-      <div>
-         <a href="{{ relativeUrl }}new">Add new</a>
-      </div>
+
+      <div class="row row-cols-auto">
+         <div class="col">
+            <button type="submit" name="btn-first" id="btn-first" title="First Page" class="form-control form-control-sm btn">
+               &laquo;
+            </button>
+         </div>
+         <div class="col">
+            <button type="submit" name="btn-prev" id="btn-prev" title="Previous Page" class="form-control form-control-sm btn">
+               &lsaquo;
+            </button>
+         </div>
+         <div class="col">
+            <input
+               class="form-control form-control-sm"
+               type="text"
+               size="1"
+               name="limit"
+               id="limit"
+               value="{{ limit }}"
+               onchange="formSubmit()"
+               title="per page; enter a value between '> 0' and '<= 1000'"
+            />
+         </div>
+         <div class="col">
+            <button type="submit" name="btn-next" id="btn-next" title="Next Page" class="form-control form-control-sm btn">
+               &rsaquo;
+            </button>
+         </div>
+         <div class="col">
+            <button type="submit" name="btn-last" id="btn-last" title="Last Page" class="form-control form-control-sm btn">
+               &raquo;
+            </button>
+         </div>
+         <div class="col">
+            {{ count }} rows
+         </div>
+         <div class="col">
+            page {{ currentPage }} of {{ pages }}
+         </div>
+
+      </form>
    </div>
 </div>
+
+</div>
+
+<script>
+   function formSubmit(){
+      document.getElementById("listAll").submit();
+   }
+</script>
+
 {% endblock %}
+

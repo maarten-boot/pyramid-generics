@@ -18,64 +18,30 @@
 <body>
   <div class="container-fluid">
 
-    {% if request.session.peek_flash()%}
-      <div id="flash" class="">
-        {% for message in request.session.pop_flash() %}
-          <div>{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
     <div id="top" class="row">
         {% block top %}
-        <nav class="navbar navbar-expand-lg bg-body-secondery">
-          <div class="container-fluid">
-            <a class="navbar-brand" href="/">Home</a>
-
-            <button class="navbar-toggler" type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarScroll"
-              aria-controls="navbarScroll"
-              aria-expanded="false"
-              aria-label="Toggle navigation">
-              <span class="navbar-toggler-icon">A</span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarScroll">
-              <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
-                <li class="nav-item">
-                </li>
-
-              </ul>
-            </div>
-          </div>
-        </nav>
+          {% include "top.html" %}
         {% endblock %}
     </div>
 
-    <div class="row">
+    <hr />
+
+    {% include "flash.html" %}
+
+    <div id="main" class="row">
+
       <div id="left" class="col col-1">
           {% block left %}
-            {% if menue %}
-              {% if relativeUrl %}
-                <nav class="nav flex-column nav-pills">
-                  {% for url, label in menue.items() %}
-                    {% if relativeUrl == url %}
-                      <a class="nav-link active" aria-current="page" href="{{url}}">{{label}}</a>
-                    {% else %}
-                      <a class="nav-link" href="{{url}}">{{label}}</a>
-                    {% endif %}
-                  {% endfor %}
-                </nav>
-              {% endif %}
-            {% endif %}
+            {% include "nav.html" %}
           {% endblock %}
       </div>
-      <div id="content" class="col col-10">
+
+      <div id="content" class="col col-11">
         {% block content %}
             No Content
         {% endblock %}
       </div>
+
     </div>
   </div>
 
