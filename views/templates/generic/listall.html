@@ -22,6 +22,7 @@
             <tr>
 
                {% for key,val in data.items() %}
+                  {% if key != "delAt" %}
                   <th class="th-xs" scope="col">
                      <button type="submit"
                         name="btn-{{ key }}"
@@ -44,6 +45,7 @@
 
                      </button>
                   </th>
+				{% endif %}
                {% endfor %}
 
                <th class="th-xs" scope="col"></th>
@@ -53,6 +55,7 @@
          <tbody class="table-group-divider">
             <tr>
                {% for key,val in data.items() %}
+                  {% if key != "delAt" %}
                   <td>
                      <input class="form-control form-control-sm col-xs-1" scope="col"
                         type="text"
@@ -62,6 +65,7 @@
                         onchange="formSubmit()"
                       />
                   </td>
+               {% endif %}
                {% endfor %}
                <td scope="col"></td>
             </tr>
@@ -69,6 +73,7 @@
             {% for item in items %}
                <tr>
                   {% for key,val in data.items() %}
+                  {% if key != "delAt" %}
                      {% if key == "id" %}
                         <th class="th-xs" scope="row">
                            <a href="{{ relativeUrl }}show/{{ item[key] }}">{{item[key]}}</a>
@@ -76,6 +81,7 @@
                      {% else %}
                         <td>{{ item[key]}}</td>
                      {% endif %}
+                  {% endif %}
                   {% endfor %}
                   <td><a href="{{ relativeUrl }}delete/{{ item['id']}}">del</a></td>
                </tr>

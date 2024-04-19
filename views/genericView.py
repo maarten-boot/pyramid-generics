@@ -275,7 +275,7 @@ class GenericView:
         filtersList = session[self.model._what]["filters"]
         for key, val in filtersList.items():
             q = q.filter(
-                cast( # non string fields cannot use ilike so we cast everything fir now
+                cast(  # non string fields cannot use ilike so we cast everything fir now
                     getattr(self.model, key),
                     sqlalchemy.String,
                 ).ilike(
@@ -295,9 +295,9 @@ class GenericView:
         sortList = session[self.model._what]["sort"]
         for key, val in sortList.items():
             if val == "down":
-                q = q.order_by(getattr(self.model, key).desc())
-            elif val == "up":
                 q = q.order_by(getattr(self.model, key).asc())
+            elif val == "up":
+                q = q.order_by(getattr(self.model, key).desc())
             else:
                 q = q
 
