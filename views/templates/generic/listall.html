@@ -46,7 +46,7 @@
                   </th>
                {% endfor %}
 
-               <th class="th-xs" scope="col">Delete</th>
+               <th class="th-xs" scope="col"></th>
             </tr>
          </thead>
 
@@ -56,8 +56,8 @@
                   <td>
                      <input class="form-control form-control-sm col-xs-1" scope="col"
                         type="text"
-                        name=""
-                        value=""
+                        name="filters-{{ key }}"
+                        value="{{ filters[key] }}"
                         size="1"
                         onchange="formSubmit()"
                       />
@@ -136,4 +136,3 @@
 </script>
 
 {% endblock %}
-

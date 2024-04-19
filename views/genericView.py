@@ -10,6 +10,8 @@ from typing import (
 
 from pyramid.httpexceptions import HTTPFound
 from models.base import getDbSession
+from sqlalchemy.sql.expression import cast
+import sqlalchemy
 
 
 class GenericView:
@@ -144,8 +146,35 @@ class GenericView:
 
         return nav, limit
 
+    def getSessionItemByNameWithDefault(self, k, default):
+        session = self.getMySessionData()
+        if k not in session[self.model._what]:
+            session[self.model._what][k] = default
+        return session[self.model._what][k]
+
+    def getFilterFields(self):
+        k = "filters"
+        filtersList = self.getSessionItemByNameWithDefault(k, {})
+        fields = self.model.getFields()
+        for name, data in fields.items():
+            z = f"{k}-{name}"
+            if z in self.request.POST and self.request.POST[z].strip() != "":
+                filtersList[name] = self.request.POST.get(z).strip()
+            else:
+                if name in filtersList:
+                    del filtersList[name]
+
+        if self.verbose:
+            print(f"{k}:", filtersList, file=sys.stderr)
+
+        session = self.getMySessionData()
+        session[self.model._what][k] = filtersList
+
+        return filtersList
+
     def getSortUpDownForFields(self):
         def toggleSort(what):
+            what = what.strip().lower()
             if what == "" or what is None:
                 what = "down"
             elif what == "down":
@@ -156,16 +185,8 @@ class GenericView:
                 what = ""
             return what
 
-        session = self.getMySessionData()
-
-        sortList = session.get(
-            self.model._what,
-            {},
-        ).get(
-            "sort",
-            {},
-        )
-
+        k = "sort"
+        sortList = self.getSessionItemByNameWithDefault(k, {})
         fields = self.model.getFields()
         for name, data in fields.items():
             z = f"btn-{name}"
@@ -173,38 +194,19 @@ class GenericView:
                 sortList[name] = toggleSort(self.request.POST.get(z))
 
         if self.verbose:
-            print("Sort:", sortList, file=sys.stderr)
+            print(f"{k}", sortList, file=sys.stderr)
 
-        session[self.model._what]["sort"] = sortList
+        session = self.getMySessionData()
+        session[self.model._what][k] = sortList
+
         return sortList
 
-    def getRowsWithPaginate(self, sortList, nav, limit):
-        session = self.getMySessionData()
-
-        k = "currentPage"
-        if k not in session[self.model._what]:
-            session[self.model._what][k] = 0
-        currentPage = session[self.model._what][k]
-
-        k = "offset"
-        if k not in session[self.model._what]:
-            session[self.model._what][k] = 0
-        offset = session[self.model._what]["offset"]
-
-        # formulate the basic query
-        q = self.dbSession.query(
-            self.model,
-        ).filter(
-            self.model.delAt.is_(None),  # skip soft_deleted items
-        )
-        count = q.count()  # how many rows do we have
-        session[self.model._what]["count"] = count
-
-        pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
-
-        if self.verbose:
-            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
-
+    def updateCurrentPage(
+        self,
+        nav,
+        currentPage,
+        pages,
+    ):
         if nav:
             if nav == "first":
                 currentPage = 0
@@ -223,26 +225,117 @@ class GenericView:
         if currentPage == pages and pages > 0:
             currentPage -= 1
 
+        return currentPage
+
+    def newOffset(self, offset, limit, currentPage, count):
         offset = limit * currentPage
         if offset < 0:
             offset = 0
         if offset > count:
             offset = count
+        return offset
+
+    def newPageCalculations(
+        self,
+        nav,
+        currentPage,
+        count,
+        limit,
+        offset,
+    ):
+        pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
 
         if self.verbose:
             print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
 
+        currentPage = self.updateCurrentPage(nav, currentPage, pages)
+        offset = self.newOffset(offset, limit, currentPage, count)
+
+        if self.verbose:
+            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
+
+        session = self.getMySessionData()
+        session[self.model._what]["count"] = count
         session[self.model._what]["offset"] = offset
         session[self.model._what]["currentPage"] = currentPage
         session[self.model._what]["pages"] = pages
 
+        return currentPage, offset, pages
+
+    def basicSelectWithCount(self):
+        self.getFilterFields()
+        # formulate the basic query
+        q = self.dbSession.query(
+            self.model,
+        ).filter(
+            self.model.delAt.is_(None),  # skip soft_deleted items
+        )
+
+        session = self.getMySessionData()
+        filtersList = session[self.model._what]["filters"]
+        for key, val in filtersList.items():
+            q = q.filter(
+                cast( # non string fields cannot use ilike so we cast everything fir now
+                    getattr(self.model, key),
+                    sqlalchemy.String,
+                ).ilike(
+                    f"%{val}%",
+                ),
+            )
+
+        if self.verbose:
+            print(q, file=sys.stderr)
+
+        count = q.count()  # how many rows do we have
+
+        return q, count
+
+    def fetchDataWithLimitAndOffset(self, q, limit, offset):
+        session = self.getMySessionData()
+        sortList = session[self.model._what]["sort"]
+        for key, val in sortList.items():
+            if val == "down":
+                q = q.order_by(getattr(self.model, key).desc())
+            elif val == "up":
+                q = q.order_by(getattr(self.model, key).asc())
+            else:
+                q = q
+
+        # limit and offset must be after order by
         q = q.limit(
             limit,
         ).offset(
             offset,
         )
 
+        if self.verbose:
+            print(q, file=sys.stderr)
+
         data = q.all()
+        return data
+
+    def getRowsWithPaginate(self):
+        self.getSortUpDownForFields()
+        nav, limit = self.getNavAndLimit()
+
+        currentPage = self.getSessionItemByNameWithDefault("currentPage", 0)
+        offset = self.getSessionItemByNameWithDefault("offset", 0)
+
+        q, count = self.basicSelectWithCount()  # will later need search filter data and ordering
+
+        currentPage, offset, pages = self.newPageCalculations(
+            nav,
+            currentPage,
+            count,
+            limit,
+            offset,
+        )
+
+        data = self.fetchDataWithLimitAndOffset(
+            q,
+            limit,
+            offset,
+        )
 
         return data, limit, count, pages, currentPage
 
@@ -255,14 +348,7 @@ class GenericView:
         if self.verbose:
             print("POST", self.request.POST, file=sys.stderr)
 
-        sortList = self.getSortUpDownForFields()
-        nav, limit = self.getNavAndLimit()
-
-        rows, limit, count, pages, currentPage = self.getRowsWithPaginate(
-            sortList,
-            nav,
-            limit,
-        )
+        rows, limit, count, pages, currentPage = self.getRowsWithPaginate()
 
         items = []
         for row in rows:
@@ -283,8 +369,9 @@ class GenericView:
             currentPage = 1
         r["currentPage"] = currentPage
 
-        r["sort"] = sortList
-        # search
+        session = self.getMySessionData()
+        r["sort"] = session[self.model._what]["sort"]
+        r["filters"] = session[self.model._what]["filters"]
 
         # TODO: add a purge view and real delete actions
         # TODO: introduce paging, filter and search
