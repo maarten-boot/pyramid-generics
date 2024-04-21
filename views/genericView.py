@@ -11,6 +11,7 @@ from typing import (
 from pyramid.httpexceptions import HTTPFound
 from models.base import getDbSession
 from sqlalchemy.sql.expression import cast
+from sqlalchemy import select
 import sqlalchemy
 
 
@@ -264,12 +265,18 @@ class GenericView:
 
     def basicSelectWithCount(self):
         self.getFilterFields()
-        # formulate the basic query
-        q = self.dbSession.query(
+        # formulate the basic query|select
+        q = select(
             self.model,
         ).filter(
             self.model.delAt.is_(None),  # skip soft_deleted items
         )
+
+#        q = self.dbSession.query(
+#            self.model,
+#        ).filter(
+#            self.model.delAt.is_(None),  # skip soft_deleted items
+#        )
 
         session = self.getMySessionData()
         filtersList = session[self.model._what]["filters"]
@@ -286,7 +293,10 @@ class GenericView:
         if self.verbose:
             print(q, file=sys.stderr)
 
+        print(f"SELECT: {q}", file=sys.stderr)
+
         count = q.count()  # how many rows do we have
+
 
         return q, count
 
