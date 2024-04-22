@@ -256,6 +256,9 @@ class GenericView(WithVerbose):
         if currentPage == pages and pages > 0:
             currentPage -= 1
 
+        session = self.getMySessionData()
+        session[self.model._what]["currentPage"] = currentPage
+
         return currentPage
 
     def newOffset(self, offset, limit, currentPage, count):
@@ -264,6 +267,10 @@ class GenericView(WithVerbose):
             offset = 0
         if offset > count:
             offset = count
+
+        session = self.getMySessionData()
+        session[self.model._what]["currentPage"] = currentPage
+
         return offset
 
     def newPageCalculations(
@@ -274,27 +281,33 @@ class GenericView(WithVerbose):
         limit,
         offset,
     ):
+        session = self.getMySessionData()
+
         pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
+        session[self.model._what]["pages"] = pages
 
         if self.verbose:
-            self._verb(f"currentPage/count/limit/offset/pages {currentPage}, {count}, {limit}, {offset}, {pages}")
+            self._verb(
+                ",".join(
+                    [f"currentPage {currentPage}", f"count {count}", f"limit {limit}", f"offset {offset}", f"pages {pages}"],
+                ),
+            )
 
         currentPage = self.updateCurrentPage(nav, currentPage, pages)
         offset = self.newOffset(offset, limit, currentPage, count)
 
         if self.verbose:
-            self._verb(f"currentPage/count/limit/offset/pages {currentPage}, {count}, {limit}, {offset}, {pages}")
-
-        session = self.getMySessionData()
-        session[self.model._what]["count"] = count
-        session[self.model._what]["offset"] = offset
-        session[self.model._what]["currentPage"] = currentPage
-        session[self.model._what]["pages"] = pages
+            self._verb(
+                ",".join(
+                    [f"currentPage {currentPage}", f"count {count}", f"limit {limit}", f"offset {offset}", f"pages {pages}"],
+                ),
+            )
 
         return currentPage, offset, pages
 
     def basicSelectWithCount(self):
         self.getFilterFields()
+        session = self.getMySessionData()
 
         # formulate the basic query|select
         q = sqlalchemy.select(
@@ -303,8 +316,8 @@ class GenericView(WithVerbose):
             self.model.delAt.is_(None),  # skip soft_deleted items
         )
 
-        session = self.getMySessionData()
         filtersList = session[self.model._what]["filters"]
+
         for key, val in filtersList.items():
             q = q.filter(
                 cast(  # non string fields cannot use ilike so we cast everything for now
@@ -330,6 +343,8 @@ class GenericView(WithVerbose):
         count = self.dbSession.execute(
             q2,
         ).scalar_one()  # how many rows do we have
+
+        session[self.model._what]["count"] = count
 
         return q, count
 
