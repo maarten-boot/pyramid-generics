@@ -27,7 +27,8 @@ def makeApp(settings):
 
         for k in modelList:
             name = models[k]["name"]
-            config.scan(f"views.{name}View")
+            # config.scan(f"views.{name}View")
+            config.include(f"views.{name}View")
 
         app = config.make_wsgi_app()
         return app

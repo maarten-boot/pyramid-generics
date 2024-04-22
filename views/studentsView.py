@@ -1,9 +1,12 @@
+import sys
+
 from pyramid.view import view_config
 
 from models.students import Students
 from views.genericView import GenericView
 
 _m = "students"
+_where = "templates/generic"
 
 
 class StudentView(GenericView):
@@ -17,7 +20,7 @@ class StudentView(GenericView):
 
     @view_config(
         route_name=f"{_m}/new",
-        renderer="templates/generic/newform.html",
+        renderer=f"{_where}/newform.html",
         request_method="GET",
     )
     def newStudent(self):  # pylint: disable=unused-argument
@@ -25,15 +28,14 @@ class StudentView(GenericView):
 
     @view_config(
         route_name=f"{_m}/listAll",
-        renderer="templates/generic/listall.html",
-        # request_method="GET",
+        renderer=f"{_where}/listall.html",
     )
     def listAll(self):  # pylint: disable=unused-argument
         return super().listAll()
 
     @view_config(
         route_name=f"{_m}/showOne",
-        renderer="templates/generic/showform.html",
+        renderer=f"{_where}/showform.html",
         request_method="GET",
     )
     def showOne(self):
@@ -41,7 +43,7 @@ class StudentView(GenericView):
 
     @view_config(
         route_name=f"{_m}/delete",
-        renderer="templates/generic/delete.html",
+        renderer=f"{_where}/delete.html",
         request_method="GET",
     )
     def deleteOne(self):
@@ -50,7 +52,7 @@ class StudentView(GenericView):
     @view_config(
         route_name=f"{_m}/add",
         request_method="POST",
-        renderer="templates/generic/newform.html",
+        renderer=f"{_where}/newform.html",
     )
     def addOne(self):
         return super().addOne()
@@ -58,7 +60,14 @@ class StudentView(GenericView):
     @view_config(
         route_name=f"{_m}/update",
         request_method="POST",
-        renderer="templates/generic/showform.html",
+        renderer=f"{_where}/showform.html",
     )
     def updateOne(self):
         return super().updateOne()
+
+
+def includeme(config):
+    if config.registry.settings.get("verbose", False):
+        print(config.registry.settings, file=sys.stderr)
+        print("includeme: StudentView(GenericView)", file=sys.stderr)
+    config.scan()
