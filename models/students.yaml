@@ -1,0 +1,15 @@
+what: Student
+genericMeta:
+    name: students,
+    labelP: Students
+    labelS: Student
+    listCaption: Sutdents Percentage List
+
+genericData:
+    id:
+        pk: true
+        auto: true
+        readonly: true
+        pyType: int
+        label: ID
+        title: automatically generated

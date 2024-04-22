@@ -1,6 +1,7 @@
 import sys
 import datetime
 import math
+import inspect
 
 from typing import (
     Dict,
@@ -9,31 +10,57 @@ from typing import (
 )
 
 from pyramid.httpexceptions import HTTPFound
-from models.base import getDbSession
-from sqlalchemy.sql.expression import cast
-from sqlalchemy import select
+
 import sqlalchemy
+from sqlalchemy.sql.expression import cast
+
+from models.base import getDbSession
 
 
-class GenericView:
+class WithVerbose:
+    verbose: bool = False
+
+    def __init__(self, verbose: bool = False):
+        self.verbose = verbose
+
+    def _verb(self, s: str) -> None:
+        if self.verbose is False:
+            return
+
+        frame = inspect.stack()[1]
+        the_class = frame[0].f_locals["self"].__class__.__name__
+        the_method = frame[0].f_code.co_name
+
+        print(
+            "VERBOSE",
+            frame.filename,
+            frame.lineno,
+            the_class,
+            the_method,
+            str(s),
+            file=sys.stderr,
+        )
+
+
+class GenericView(WithVerbose):
     model = None
 
     def __init__(self, request):
-        self.request = request
-        self.dbSession = getDbSession()
+        self.verbose = request.registry.settings.get("verbose", False)
+        # super().__init__(verbose=verbose)
 
+        self.request = request
+        self.session = request.session
         self.settings = request.registry.settings
+
         self.menue = self.settings.get("menue")
 
-        self.verbose = self.settings.get("verbose")
+        self.dbSession = getDbSession()
         if self.verbose:
-            print(
-                f"VERBOSE GenericView.__init__: {self.settings}",
-                file=sys.stderr,
-            )
+            self._verb(str(self.settings))
 
     def getMySessionData(self):
-        session = self.request.session
+        session = self.session
         if self.model._what not in session:
             session[self.model._what] = {}
         return session
@@ -90,9 +117,12 @@ class GenericView:
         assert False, "Expect to see a PK name in the model metadata"
 
     def _setDataAsDict(self, row):
-        fields = self.model.getFields()
         fad = {}
-        for name, data in fields.items():
+
+        fields = self.model.getFields()
+
+        for name in self.model.getFieldsOrder():
+            data = fields[name]
             k = "pyType"
             if k in data and data[k] == "datetime" and "format" in data:
                 z = getattr(row, name)
@@ -105,7 +135,7 @@ class GenericView:
                     fad[name] = z
 
         if self.verbose:
-            print(fad)
+            self._verb(str(fad))
 
         return fad
 
@@ -138,7 +168,7 @@ class GenericView:
             limit = 5
 
         if self.verbose:
-            print(f"nav: {nav}, {limit}", file=sys.stderr)
+            self._verb(f"nav: {nav}, {limit}")
 
         if limit <= 0:
             limit = 1
@@ -156,8 +186,8 @@ class GenericView:
     def getFilterFields(self):
         k = "filters"
         filtersList = self.getSessionItemByNameWithDefault(k, {})
-        fields = self.model.getFields()
-        for name, data in fields.items():
+
+        for name in self.model.getFieldsOrder():
             z = f"{k}-{name}"
             if z in self.request.POST and self.request.POST[z].strip() != "":
                 filtersList[name] = self.request.POST.get(z).strip()
@@ -166,7 +196,7 @@ class GenericView:
                     del filtersList[name]
 
         if self.verbose:
-            print(f"{k}:", filtersList, file=sys.stderr)
+            self._verb(f"{k}: {filtersList}")
 
         session = self.getMySessionData()
         session[self.model._what][k] = filtersList
@@ -188,14 +218,14 @@ class GenericView:
 
         k = "sort"
         sortList = self.getSessionItemByNameWithDefault(k, {})
-        fields = self.model.getFields()
-        for name, data in fields.items():
+
+        for name in self.model.getFieldsOrder():
             z = f"btn-{name}"
             if z in self.request.POST:
                 sortList[name] = toggleSort(self.request.POST.get(z))
 
         if self.verbose:
-            print(f"{k}", sortList, file=sys.stderr)
+            self._verb(f"{k} {sortList}")
 
         session = self.getMySessionData()
         session[self.model._what][k] = sortList
@@ -247,13 +277,13 @@ class GenericView:
         pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
 
         if self.verbose:
-            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
+            self._verb(f"currentPage/count/limit/offset/pages {currentPage}, {count}, {limit}, {offset}, {pages}")
 
         currentPage = self.updateCurrentPage(nav, currentPage, pages)
         offset = self.newOffset(offset, limit, currentPage, count)
 
         if self.verbose:
-            print("currentPage/count/limit/offset/pages", currentPage, count, limit, offset, pages, file=sys.stderr)
+            self._verb(f"currentPage/count/limit/offset/pages {currentPage}, {count}, {limit}, {offset}, {pages}")
 
         session = self.getMySessionData()
         session[self.model._what]["count"] = count
@@ -265,24 +295,19 @@ class GenericView:
 
     def basicSelectWithCount(self):
         self.getFilterFields()
+
         # formulate the basic query|select
-        q = select(
+        q = sqlalchemy.select(
             self.model,
         ).filter(
             self.model.delAt.is_(None),  # skip soft_deleted items
         )
 
-#        q = self.dbSession.query(
-#            self.model,
-#        ).filter(
-#            self.model.delAt.is_(None),  # skip soft_deleted items
-#        )
-
         session = self.getMySessionData()
         filtersList = session[self.model._what]["filters"]
         for key, val in filtersList.items():
             q = q.filter(
-                cast(  # non string fields cannot use ilike so we cast everything fir now
+                cast(  # non string fields cannot use ilike so we cast everything for now
                     getattr(self.model, key),
                     sqlalchemy.String,
                 ).ilike(
@@ -291,12 +316,20 @@ class GenericView:
             )
 
         if self.verbose:
-            print(q, file=sys.stderr)
+            self._verb(str(q))
 
-        print(f"SELECT: {q}", file=sys.stderr)
+        q2 = sqlalchemy.select(
+            sqlalchemy.func.count(),
+        ).select_from(
+            q,
+        )
 
-        count = q.count()  # how many rows do we have
+        if self.verbose:
+            self._verb(str(q2))
 
+        count = self.dbSession.execute(
+            q2,
+        ).scalar_one()  # how many rows do we have
 
         return q, count
 
@@ -318,11 +351,9 @@ class GenericView:
             offset,
         )
 
-        if self.verbose:
-            print(q, file=sys.stderr)
-
-        data = q.all()
-        return data
+        # use scalars instead of execute:
+        # see:: https://docs.sqlalchemy.org/en/20/orm/queryguide/select.html#selecting-orm-entities
+        return self.dbSession.scalars(q).all()
 
     def getRowsWithPaginate(self):
         self.getSortUpDownForFields()
@@ -356,18 +387,20 @@ class GenericView:
 
     def listAll(self):  # pylint: disable=unused-argument
         if self.verbose:
-            print("POST", self.request.POST, file=sys.stderr)
+            self._verb(str("POST: {self.request.POST}"))
 
         rows, limit, count, pages, currentPage = self.getRowsWithPaginate()
 
-        items = []
-        for row in rows:
-            zz = self._setDataAsDict(row)
-            items.append(zz)
+        d = {}
+        fields = self.model.getFields()
+        for name in self.model.getFieldsOrder():
+            self._verb(f"name: {name}")
+            d[name] = fields[name]
 
         r = self.startReturnData("listAll")
-        r["items"] = items  # a list of all rows
-        r["data"] = self.model.getFields()
+        r["data"] = d
+
+        r["items"] = rows
         r["listCaption"] = self.getListCaption()
 
         r["limit"] = limit
@@ -384,8 +417,11 @@ class GenericView:
         r["filters"] = session[self.model._what]["filters"]
 
         # TODO: add a purge view and real delete actions
-        # TODO: introduce paging, filter and search
         # TODO: clear all filters
+
+        if self.verbose:
+            self._verb(f"{r}")
+
         return r
 
     def showOne(self):
@@ -406,18 +442,20 @@ class GenericView:
         return r
 
     def addOne(self):
-        fields = self.model.getFields()
         d = {}
-        for name, data in fields.items():
+        fields = self.model.getFields()
+
+        for name in self.model.getFieldsOrder():
+            data = fields[name]
             if self.request.POST.get(name):
                 if data.get("readonly", None) is True:
                     continue
-                d[name] = self.request.POST.get(name)
-                # validate
-                d[name] = d[name].strip()
+
+                d[name] = self.request.POST.get(name).strip()
+                # TODO: validate
 
         if self.verbose:
-            print(f"VERBOSE GenericView.addOne: {d}", file=sys.stderr)
+            self._verb(f"VERBOSE GenericView.addOne: {d}")
 
         item = self.model(**d)
         try:
@@ -442,16 +480,18 @@ class GenericView:
             self.request.session.flash(msg)
             return HTTPFound(location=f"/{self._m}/")
 
-        fields = self.model.getFields()
         d = {}
-        for name, data in fields.items():
+        fields = self.model.getFields()
+
+        for name in self.model.getFieldsOrder():
+            data = fields[name]
+
             if self.request.POST.get(name):
                 if data.get("readonly", None) is True:
                     continue
 
-                d[name] = self.request.POST.get(name)
+                d[name] = self.request.POST.get(name).strip()
                 # TODO: validate
-                d[name] = d[name].strip()
 
                 setattr(row, name, d[name])  # update the row
         try:
