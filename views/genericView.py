@@ -47,22 +47,18 @@ class GenericView(WithVerbose):
 
     def __init__(self, request):
         self.verbose = request.registry.settings.get("verbose", False)
-        # super().__init__(verbose=verbose)
-
         self.request = request
         self.session = request.session
         self.settings = request.registry.settings
-
         self.menue = self.settings.get("menue")
-
         self.dbSession = getDbSession()
-        if self.verbose:
-            self._verb(str(self.settings))
 
     def getMySessionData(self):
+        z = self.model()
+
         session = self.session
-        if self.model._what not in session:
-            session[self.model._what] = {}
+        if z._what not in session:
+            session[z._what] = {}
         return session
 
     def getListCaption(self):
@@ -105,7 +101,9 @@ class GenericView(WithVerbose):
         return r
 
     def _getPkName(self, mustExist: bool = True) -> str | None:
-        fields = self.model.getFields()
+        z = self.model()
+
+        fields = z.getFields()
         k = "pk"
         for n, d in fields.items():
             if k in d and d[k] is True:
@@ -119,10 +117,11 @@ class GenericView(WithVerbose):
     def _setDataAsDict(self, row):
         fad = {}
 
-        fields = self.model.getFields()
-
-        for name in self.model.getFieldsOrder():
+        z = self.model()
+        fields = z.getFields()
+        for name in z.getFieldsOrder():
             data = fields[name]
+
             k = "pyType"
             if k in data and data[k] == "datetime" and "format" in data:
                 z = getattr(row, name)
@@ -178,19 +177,23 @@ class GenericView(WithVerbose):
         return nav, limit
 
     def getSessionItemByNameWithDefault(self, k, default):
+        z = self.model()
+
         session = self.getMySessionData()
-        if k not in session[self.model._what]:
-            session[self.model._what][k] = default
-        return session[self.model._what][k]
+        if k not in session[z._what]:
+            session[z._what][k] = default
+        return session[z._what][k]
 
     def getFilterFields(self):
+        z = self.model()
+
         k = "filters"
         filtersList = self.getSessionItemByNameWithDefault(k, {})
 
-        for name in self.model.getFieldsOrder():
-            z = f"{k}-{name}"
-            if z in self.request.POST and self.request.POST[z].strip() != "":
-                filtersList[name] = self.request.POST.get(z).strip()
+        for name in z.getFieldsOrder():
+            n = f"{k}-{name}"
+            if n in self.request.POST and self.request.POST[n].strip() != "":
+                filtersList[name] = self.request.POST.get(n).strip()
             else:
                 if name in filtersList:
                     del filtersList[name]
@@ -199,7 +202,7 @@ class GenericView(WithVerbose):
             self._verb(f"{k}: {filtersList}")
 
         session = self.getMySessionData()
-        session[self.model._what][k] = filtersList
+        session[z._what][k] = filtersList
 
         return filtersList
 
@@ -218,17 +221,17 @@ class GenericView(WithVerbose):
 
         k = "sort"
         sortList = self.getSessionItemByNameWithDefault(k, {})
-
-        for name in self.model.getFieldsOrder():
-            z = f"btn-{name}"
+        z = self.model()
+        for name in z.getFieldsOrder():
+            n = f"btn-{name}"
             if z in self.request.POST:
-                sortList[name] = toggleSort(self.request.POST.get(z))
+                sortList[name] = toggleSort(self.request.POST.get(n))
 
         if self.verbose:
             self._verb(f"{k} {sortList}")
 
         session = self.getMySessionData()
-        session[self.model._what][k] = sortList
+        session[z._what][k] = sortList
 
         return sortList
 
@@ -238,6 +241,8 @@ class GenericView(WithVerbose):
         currentPage,
         pages,
     ):
+        z = self.model()
+
         if nav:
             if nav == "first":
                 currentPage = 0
@@ -257,11 +262,13 @@ class GenericView(WithVerbose):
             currentPage -= 1
 
         session = self.getMySessionData()
-        session[self.model._what]["currentPage"] = currentPage
+        session[z._what]["currentPage"] = currentPage
 
         return currentPage
 
     def newOffset(self, offset, limit, currentPage, count):
+        z = self.model()
+
         offset = limit * currentPage
         if offset < 0:
             offset = 0
@@ -269,7 +276,7 @@ class GenericView(WithVerbose):
             offset = count
 
         session = self.getMySessionData()
-        session[self.model._what]["currentPage"] = currentPage
+        session[z._what]["currentPage"] = currentPage
 
         return offset
 
@@ -281,10 +288,12 @@ class GenericView(WithVerbose):
         limit,
         offset,
     ):
+        z = self.model()
+
         session = self.getMySessionData()
 
         pages = int(math.ceil(count / limit))  # how many pages is that with the current perPage limit
-        session[self.model._what]["pages"] = pages
+        session[z._what]["pages"] = pages
 
         if self.verbose:
             self._verb(
@@ -312,11 +321,15 @@ class GenericView(WithVerbose):
         # formulate the basic query|select
         q = sqlalchemy.select(
             self.model,
-        ).filter(
-            self.model.delAt.is_(None),  # skip soft_deleted items
         )
 
-        filtersList = session[self.model._what]["filters"]
+        if hasattr(self.model, "delAt"):
+            q = q.filter(
+                self.model.delAt.is_(None),  # skip soft_deleted items
+            )
+
+        z = self.model()
+        filtersList = session[z._what]["filters"]
 
         for key, val in filtersList.items():
             q = q.filter(
@@ -344,13 +357,15 @@ class GenericView(WithVerbose):
             q2,
         ).scalar_one()  # how many rows do we have
 
-        session[self.model._what]["count"] = count
+        session[z._what]["count"] = count
 
         return q, count
 
     def fetchDataWithLimitAndOffset(self, q, limit, offset):
+        z = self.model()
+
         session = self.getMySessionData()
-        sortList = session[self.model._what]["sort"]
+        sortList = session[z._what]["sort"]
         for key, val in sortList.items():
             if val == "down":
                 q = q.order_by(getattr(self.model, key).asc())
@@ -396,8 +411,13 @@ class GenericView(WithVerbose):
         return data, limit, count, pages, currentPage
 
     def newItem(self):  # pylint: disable=unused-argument
+
         r = self.startReturnData("new")
-        r["data"] = self.model._genericData
+        r["data"] = self.makeGenericDataInTheRightOrder()
+
+        if self.verbose:
+            self._verb(f"{r}")
+
         return r
 
     def listAll(self):  # pylint: disable=unused-argument
@@ -406,16 +426,24 @@ class GenericView(WithVerbose):
 
         rows, limit, count, pages, currentPage = self.getRowsWithPaginate()
 
+        # apply format to date time items
+        prepRows = []
+        for row in rows:
+            prepRows.append(self._setDataAsDict(row))
+
+        z = self.model()
+        fields = z.getFields()
+        self._verb(f"fields: {fields}")
+
         d = {}
-        fields = self.model.getFields()
-        for name in self.model.getFieldsOrder():
+        for name in z.getFieldsOrder():
             self._verb(f"name: {name}")
             d[name] = fields[name]
 
         r = self.startReturnData("listAll")
         r["data"] = d
 
-        r["items"] = rows
+        r["items"] = prepRows
         r["listCaption"] = self.getListCaption()
 
         r["limit"] = limit
@@ -428,8 +456,8 @@ class GenericView(WithVerbose):
         r["currentPage"] = currentPage
 
         session = self.getMySessionData()
-        r["sort"] = session[self.model._what]["sort"]
-        r["filters"] = session[self.model._what]["filters"]
+        r["sort"] = session[z._what]["sort"]
+        r["filters"] = session[z._what]["filters"]
 
         # TODO: add a purge view and real delete actions
         # TODO: clear all filters
@@ -438,6 +466,16 @@ class GenericView(WithVerbose):
             self._verb(f"{r}")
 
         return r
+
+    def makeGenericDataInTheRightOrder(self):
+        z = self.model()
+        gd = z.getGenericData()
+
+        d = {}
+        for name in z.getFieldsOrder():
+            if name in gd:
+                d[name] = gd[name]
+        return d
 
     def showOne(self):
         # find the name of the pk
@@ -450,17 +488,20 @@ class GenericView(WithVerbose):
             self.request.session.flash(msg)
             return HTTPFound(location=f"/{self._m}/")
 
-        zz = self._setDataAsDict(row)
         r = self.startReturnData("showOne")
-        r["item"] = zz
-        r["data"] = self.model._genericData
+        r["item"] = self._setDataAsDict(row)
+        r["data"] = self.makeGenericDataInTheRightOrder()  # this is in the wrong order
+
+        if self.verbose:
+            self._verb(f"{r}")
+
         return r
 
     def addOne(self):
         d = {}
-        fields = self.model.getFields()
-
-        for name in self.model.getFieldsOrder():
+        z = self.model()
+        fields = z.getFields()
+        for name in z.getFieldsOrder():
             data = fields[name]
             if self.request.POST.get(name):
                 if data.get("readonly", None) is True:
@@ -481,12 +522,17 @@ class GenericView(WithVerbose):
             r = self.startReturnData("new")
 
             r["item"] = d
-            r["data"] = self.model._genericData
+            r["data"] = self.makeGenericDataInTheRightOrder()
             r["message"] = f"error on 'add': {e}"
+
+            if self.verbose:
+                self._verb(f"{r}")
 
             return r
 
     def updateOne(self):
+        z = self.model()
+
         pkName = self._getPkName()
         idX = self.request.POST.get(pkName)
         row = self.getRowFirstWithPk(idX)
@@ -496,9 +542,9 @@ class GenericView(WithVerbose):
             return HTTPFound(location=f"/{self._m}/")
 
         d = {}
-        fields = self.model.getFields()
+        fields = z.getFields()
 
-        for name in self.model.getFieldsOrder():
+        for name in z.getFieldsOrder():
             data = fields[name]
 
             if self.request.POST.get(name):
@@ -514,12 +560,14 @@ class GenericView(WithVerbose):
             return HTTPFound(location=f"{self.relativeUrl}")
         except Exception as e:
             self.dbSession.rollback()
-            zz = self._setDataAsDict(row)
 
             r = self.startReturnData("showOne")
-            r["item"] = zz
-            r["data"] = self.model._genericData
+            r["item"] = self._setDataAsDict(row)
+            r["data"] = self.makeGenericDataInTheRightOrder()
             r["message"] = f"error on 'update': {e}"
+
+            if self.verbose:
+                self._verb(f"{r}")
 
             return r
 
@@ -532,8 +580,12 @@ class GenericView(WithVerbose):
             self.request.session.flash(msg)
             return HTTPFound(location=f"/{self._m}/")
 
-        # self.getRowsWithPk(idX).delete()
-        row.delAt = datetime.datetime.now()
+        if hasattr(row, "delAt"):
+            # use softdelete when defined in the model
+            row.delAt = datetime.datetime.now()
+        else:
+            self.getRowsWithPk(idX).delete()
+
         self.dbSession.commit()
 
         msg = f"Record has been deleted: pkName: {pkName}, pk: {idX}"
@@ -542,5 +594,5 @@ class GenericView(WithVerbose):
 
         r = self.startReturnData("delete")
         r["message"] = "Record has been deleted"
-        r["data"] = self.model._genericData
+        r["data"] = self.makeGenericDataInTheRightOrder()
         return r

@@ -11,7 +11,14 @@ from typing import (
     Tuple,
     Optional,
 )
-from sqlalchemy.ext.declarative import declarative_base
+
+# from sqlalchemy.ext.declarative import declarative_base
+
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    declared_attr,
+)
+
 from sqlalchemy import (
     create_engine,
     Column,
@@ -27,8 +34,6 @@ from sqlalchemy.orm import (
 )
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test2.db"
-
-Base = declarative_base()
 
 
 def getDbSession():
@@ -46,58 +51,63 @@ def getDbSession():
 
 class WithGenerics:
     _what = None
-    _genericMeta = {}
     _genericData = {}
     _genericOrder = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._what = None
+        self._genericMeta = {}
+        self._genericData = {}
+        self._genericOrder = []
 
-    @classmethod
-    def setWhat(cls, what: str) -> None:
-        cls._what = what
+    def setWhat(self, what: str) -> None:
+        self._what = what
 
-    @classmethod
-    def addGenericMeta(cls, key: str, val: str) -> None:
-        cls._genericMeta[key] = val
+    def addGenericMeta(self, key: str, val: str) -> None:
+        self._genericMeta[key] = val
 
-    @classmethod
-    def addGenericMetaDict(cls, d: Dict[str, str]) -> None:
-        cls._genericMeta = d
+    def addGenericMetaDict(self, d: Dict[str, str]) -> None:
+        self._genericMeta = d
 
-    @classmethod
-    def addGgenericData(cls, name: str, info: Dict[str, Any]) -> None:
-        cls._genericData[name] = info
+    def addGenericData(self, name: str, info: Dict[str, Any]) -> None:
+        self._genericData[name] = info
 
-    @classmethod
-    def getFields(cls) -> Dict[str, Any]:
-        return cls._genericData
+    def getGenericData(self) -> dict:
+        return self._genericData
 
-    @classmethod
-    def setFieldsOrder(cls, fieldsOrder: list) -> None:
-        cls._genericOrder = fieldsOrder
+    def getFields(self) -> Dict[str, Any]:
+        return self._genericData
 
-    @classmethod
-    def getFieldsOrder(cls) -> None:
-        return cls._genericOrder
+    def setFieldsOrder(self, fieldsOrder: list) -> None:
+        self._genericOrder = fieldsOrder
 
-    @classmethod
-    def isValid(cls, name: str, value: Any) -> Tuple[bool, Optional[str]]:
+    def getFieldsOrder(self) -> None:
+        return self._genericOrder
+
+    def isValid(self, name: str, value: Any) -> Tuple[bool, Optional[str]]:
         # if we dont know about this name: the data is false allways
-        if name not in cls._genericData:
+        if name not in self._genericData:
             return False, "Field name unknown in table: Students"
 
         # if we have no validators define the data is ok allways
-        if "validators" not in cls._genericData[name]:
+        if "validators" not in self._genericData[name]:
             return True
 
-        for n, func in cls._genericData[name]["validators"].items():
+        for n, func in self._genericData[name]["validators"].items():
             if func(value) is False:
                 return False
         return True
 
 
-class HavingIntegerIdManual(
+class Base(DeclarativeBase):
+    # make the default table name the lower case class name
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
+        return cls.__name__.lower()
+
+
+class HavingIntegerIdPkManual(
     WithGenerics,
     Base,
 ):  # pylint: disable=too-few-public-methods
@@ -105,7 +115,7 @@ class HavingIntegerIdManual(
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.addGgenericData(
+        self.addGenericData(
             "id",
             {
                 "pk": True,
@@ -124,7 +134,7 @@ class HavingIntegerIdManual(
     )
 
 
-class HavingIntegerIdAutoIncr(
+class HavingIntegerIdPkAutoIncr(
     WithGenerics,
     Base,
 ):  # pylint: disable=too-few-public-methods
@@ -132,7 +142,7 @@ class HavingIntegerIdAutoIncr(
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.addGgenericData(
+        self.addGenericData(
             "id",
             {
                 "pk": True,
@@ -160,7 +170,7 @@ class HavingUuid(
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.addGgenericData(
+        self.addGenericData(
             "uuid",
             {
                 "auto": True,
@@ -178,35 +188,93 @@ class HavingUuid(
     )
 
 
-class HavingUniqNameAndDescription(
+class HavingName(
     WithGenerics,
     Base,
 ):
     __abstract__ = True
 
+    NAME_STRLEN_MAX = 128
+
+    def getNameStrlenMax(self):
+        return self.NAME_STRLEN_MAX
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.addGgenericData(
+        self.addGenericData(
+            "name",
+            {
+                "pyType": "str",
+                "label": "Name",
+                "title": "Enter a name.",
+                "validators": {
+                    "StringLen": lambda a: (len(str(a)) <= self.NAME_STRLEN_MAX),
+                },
+            },
+        )
+
+    name = Column(
+        String(NAME_STRLEN_MAX),
+    )
+
+
+class HavingUniqName(
+    WithGenerics,
+    Base,
+):
+    __abstract__ = True
+
+    NAME_STRLEN_MAX = 128
+
+    def getNameStrlenMax(self):
+        return self.NAME_STRLEN_MAX
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.addGenericData(
             "name",
             {
                 "pyType": "str",
                 "label": "Name",
                 "title": "Enter a unique name.",
                 "validators": {
-                    "StringLen": lambda a: (len(str(a)) <= 128),
+                    "StringLen": lambda a: (len(str(a)) <= self.NAME_STRLEN_MAX),
                 },
             },
         )
 
-    # _name_lan = 128
     name = Column(
-        String(128),
+        String(NAME_STRLEN_MAX),
         unique=True,
+        nullable=False,
     )
-    description = Column(UnicodeText())
 
 
-class HavingDatesCreUpdDel(
+class HavingDescriptionUtf8(
+    WithGenerics,
+    Base,
+):
+    __abstract__ = True
+
+    description = Column(
+        UnicodeText(),
+        nullable=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.addGenericData(
+            "description",
+            {
+                "pyType": "str",
+                "label": "Description",
+                "title": "Describe this item.",
+                "validators": {},
+            },
+        )
+
+
+class HavingDatesCreUpd(
     WithGenerics,
     Base,
 ):  # pylint: disable=too-few-public-methods
@@ -214,7 +282,7 @@ class HavingDatesCreUpdDel(
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.addGgenericData(
+        self.addGenericData(
             "creAt",
             {
                 "pyType": "datetime",
@@ -224,24 +292,13 @@ class HavingDatesCreUpdDel(
                 "readonly": True,
             },
         )
-        self.addGgenericData(
+        self.addGenericData(
             "updAt",
             {
                 "pyType": "datetime",
                 "format": "%Y-%m-%d %H:%M",
                 "label": "updated",
                 "title": "The last update timestamp, automatically generated",
-                "readonly": True,
-            },
-        )
-
-        self.addGgenericData(
-            "delAt",
-            {
-                "label": "deleted",
-                "format": "%Y-%m-%d %H:%M",
-                "title": "The delete timestamp, automatically generated",
-                "pyType": "datetime",
                 "readonly": True,
             },
         )
@@ -255,6 +312,27 @@ class HavingDatesCreUpdDel(
         default=datetime.datetime.now,
         onupdate=datetime.datetime.now,
     )
+
+
+class HavingSoftDelete(
+    WithGenerics,
+    Base,
+):  # pylint: disable=too-few-public-methods
+    __abstract__ = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.addGenericData(
+            "delAt",
+            {
+                "label": "deleted",
+                "format": "%Y-%m-%d %H:%M",
+                "title": "The delete timestamp, automatically generated",
+                "pyType": "datetime",
+                "readonly": True,
+            },
+        )
+
     delAt = Column(
         DateTime,
         nullable=True,

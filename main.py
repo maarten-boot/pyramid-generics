@@ -17,18 +17,19 @@ def makeApp(settings):
         config.include("pyramid_jinja2")
         config.add_jinja2_renderer(".html")
 
-        config.add_route("index", "/")
-        for m, pInfo in paths.items():
-            for k, v in pInfo.items():
-                config.add_route(f"{m}/{k}", f"{m}{v}")
+        config.add_route(name="index", pattern="/")  # name, pattern
+        for name, pInfo in paths.items():
+            with config.route_prefix_context(name):
+                for k, v in pInfo.items():
+                    config.add_route(name=f"{name}/{k}", pattern=f"{v}")
 
         name = "main"
         config.scan(f"views.{name}View")
 
         for k in modelList:
             name = models[k]["name"]
-            # config.scan(f"views.{name}View")
             config.include(f"views.{name}View")
+            config.commit()
 
         app = config.make_wsgi_app()
         return app
@@ -41,9 +42,13 @@ if __name__ == "__main__":
 
     models = [
         "model.students.Students",
+        "model.context.Context",
     ]
 
-    modelList = ["Students"]
+    modelList = [
+        "Students",
+        "Context",
+    ]
 
     settings = makeAutoSettings(
         modelList,

@@ -5,25 +5,39 @@
 from sqlalchemy import (
     Column,
     Integer,
-    String,
+    # String,
+    UniqueConstraint,
 )
 
 
 from models.base import (
     Base,
-    HavingDatesCreUpdDel,
+    HavingIntegerIdPkAutoIncr,
     HavingUuid,
-    HavingIntegerIdAutoIncr,
+    HavingName,
+    HavingDatesCreUpd,
+    HavingSoftDelete,
 )
 
 
 class Students(
-    HavingIntegerIdAutoIncr,
+    HavingIntegerIdPkAutoIncr,
     HavingUuid,
-    HavingDatesCreUpdDel,
+    HavingName,
+    HavingDatesCreUpd,
+    HavingSoftDelete,
     Base,
 ):  # pylint: disable=too-few-public-methods
     __tablename__ = "student"
+
+    percent = Column(
+        Integer,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name"),
+        # UniqueConstraint("col2", "col3", name="uix_1"),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,29 +45,21 @@ class Students(
         what = "Student"
         self.setWhat(what)
 
-        self.addGgenericData(
-            "name",
-            {
-                "pyType": "str",
-                "label": "Name",
-                "title": "Enter a student name.",
-                "validators": {
-                    "StringLen": lambda a: (len(str(a)) <= 63),
-                },
-            },
-        )
-
-        self.addGgenericData(
+        self.addGenericData(
             "percent",
             {
                 "pyType": "int",
                 "label": "%",
                 "title": "enter a percentage between [0-100] inclusive",
                 "validators": {
-                    "IntegerPercent": lambda a: (int(a) >= 0 and int(a) <= 100),
+                    "IntegerPercent": {
+                        "valid": lambda a: (int(a) >= 0 and int(a) <= 100),
+                        "message": "the data is invalid, please verify that the value is a integer between 0 and 100, inclusive",
+                    },
                 },
             },
         )
+
         self.addGenericMetaDict(
             {
                 "name": "students",
@@ -73,12 +79,3 @@ class Students(
                 "updAt",
             ],
         )
-
-    name = Column(
-        String(63),
-        unique=True,
-    )
-
-    percent = Column(
-        Integer,
-    )
